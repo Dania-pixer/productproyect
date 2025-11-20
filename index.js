@@ -41,14 +41,15 @@ app.post("/products", async (req, res) => {
     // 3. Subir JSON a S3
     await s3.send(
       new PutObjectCommand({
-        Bucket: process.env.AWS_BUCKET,
+        Bucket: process.env.S3_BUCKET_NAME,
         Key: fileName,
         Body: JSON.stringify(productJson),
         ContentType: "application/json"
       })
     );
 
-    const fileUrl = `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${fileName}`;
+    // URL correcta del bucket regional
+    const fileUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
 
     // 4. Guardar URL en BD
     await db.execute(
@@ -128,7 +129,7 @@ app.delete("/products/:id", async (req, res) => {
   // 1. Eliminar archivo en S3
   await s3.send(
     new DeleteObjectCommand({
-      Bucket: process.env.AWS_BUCKET,
+      Bucket: process.env.S3_BUCKET_NAME,
       Key: key
     })
   );
