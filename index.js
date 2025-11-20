@@ -1,13 +1,12 @@
 import express from "express";
 import dotenv from "dotenv";
 import { db } from "./db.js";
-import { s3 } from "./s3.js";
+import { s3, PutObjectCommand, DeleteObjectCommand } from "./s3.js";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
-
 
 // -----------------------------------------------------
 // CREATE PRODUCT + GENERATE JSON + UPLOAD TO S3
@@ -40,14 +39,14 @@ app.post("/products", async (req, res) => {
     const fileName = `product_${id}.json`;
 
     // 3. Subir JSON a S3
-    await s3
-      .putObject({
+    await s3.send(
+      new PutObjectCommand({
         Bucket: process.env.AWS_BUCKET,
         Key: fileName,
         Body: JSON.stringify(productJson),
         ContentType: "application/json"
       })
-      .promise();
+    );
 
     const fileUrl = `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${fileName}`;
 
@@ -69,7 +68,6 @@ app.post("/products", async (req, res) => {
   }
 });
 
-
 // -----------------------------------------------------
 // GET ALL PRODUCTS
 // -----------------------------------------------------
@@ -77,7 +75,6 @@ app.get("/products", async (req, res) => {
   const [rows] = await db.execute("SELECT * FROM products");
   res.json(rows);
 });
-
 
 // -----------------------------------------------------
 // GET SINGLE PRODUCT
@@ -95,7 +92,6 @@ app.get("/products/:id", async (req, res) => {
   res.json(rows[0]);
 });
 
-
 // -----------------------------------------------------
 // UPDATE PRODUCT
 // -----------------------------------------------------
@@ -109,7 +105,6 @@ app.put("/products/:id", async (req, res) => {
 
   res.json({ message: "Producto actualizado" });
 });
-
 
 // -----------------------------------------------------
 // DELETE PRODUCT + DELETE JSON FROM S3
@@ -131,12 +126,12 @@ app.delete("/products/:id", async (req, res) => {
   const key = fileUrl.split(".com/")[1];
 
   // 1. Eliminar archivo en S3
-  await s3
-    .deleteObject({
+  await s3.send(
+    new DeleteObjectCommand({
       Bucket: process.env.AWS_BUCKET,
       Key: key
     })
-    .promise();
+  );
 
   // 2. Eliminar de BD
   await db.execute("DELETE FROM products WHERE id=?", [id]);
@@ -145,7 +140,6 @@ app.delete("/products/:id", async (req, res) => {
     message: "Producto eliminado + archivo JSON eliminado de S3"
   });
 });
-
 
 app.listen(process.env.PORT || 3000, () =>
   console.log("API corriendo en puerto 3000")
